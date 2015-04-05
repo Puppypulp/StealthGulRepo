@@ -7,6 +7,9 @@ public class PlayerGullController : MonoBehaviour
     public float jumpSpeed = 8.0f;
     public float gravity = 20.0f;
     public float rotationMoveSpeed = 15.0f;
+    public float snapToCoverDistance = 10.0f;
+    public bool inCover = false;
+    public LayerMask coverRayMask;    
 
     private Vector3 m_moveDirection = Vector3.zero;
     private Vector3 m_facingDirection = Vector3.zero;
@@ -14,6 +17,11 @@ public class PlayerGullController : MonoBehaviour
     private Transform m_camTrans;
     private Vector3 xCam = Vector3.zero;
     private Vector3 flatZCam = Vector3.zero;
+    private Vector3 m_camRelativeVec = Vector3.zero;
+    private bool m_canBreakFromCover = true;
+    private Vector3 m_coverObjectVec = Vector3.zero;
+    private Vector3 m_currentCoverEdgeNormal = Vector3.zero;
+    private Vector3 m_currentCoverPoint = Vector3.zero;
 
 	// Use this for initialization
 	private void Awake() 
@@ -29,16 +37,51 @@ public class PlayerGullController : MonoBehaviour
         // CAMERA RELATIVE VECTORS
         xCam = Vector3.Normalize(m_camTrans.right);
         flatZCam = Vector3.Normalize(m_camTrans.forward - (Vector3.Dot(Vector3.up, m_camTrans.forward)) * Vector3.up);
+        m_camRelativeVec = (xCam * Input.GetAxis("Horizontal")) + (flatZCam * Input.GetAxis("Vertical"));
+
+        if (Input.GetButtonDown("Cover") && !inCover)
+        {
+            StartCoroutine("MoveToCover");
+        }
+
+        if (Input.GetButtonDown("Cover") && m_canBreakFromCover && inCover)
+        {
+            inCover = false;
+        }
 
         // MOVEMENT CODE IF PLAYER IS GROUNDED
         if (m_player1CharacterController.isGrounded)
         {
-            m_moveDirection = (xCam * Input.GetAxis("Horizontal")) + (flatZCam * Input.GetAxis("Vertical"));
+            if (inCover)
+            {
+                if (!CoverEdgeValid())
+                {
+                    Vector3 vecToPlayerFromCoverPoint = Vector3.Normalize( transform.position - m_currentCoverPoint );
+                    float dot = Vector3.Dot(vecToPlayerFromCoverPoint, m_coverObjectVec);
+
+                    if (dot < -0.05f)
+                    {
+                        m_moveDirection = m_coverObjectVec * Mathf.Clamp(Vector3.Dot(m_camRelativeVec, m_coverObjectVec), 0f, 1f);
+                    }
+                    else
+                    {
+                        m_moveDirection = m_coverObjectVec * Mathf.Clamp(Vector3.Dot(m_camRelativeVec, m_coverObjectVec), -1f, 0f);
+                    }
+                }
+                else
+                {
+                    m_moveDirection = m_coverObjectVec * Vector3.Dot(m_camRelativeVec, m_coverObjectVec);
+                }                
+            }
+            else
+            {
+                m_moveDirection = m_camRelativeVec;
+            }
            
             m_moveDirection *= moveSpeed;
             
-            //REMOVED JUMP CODE FOR NOW	
-            if(Input.GetButton("Jump"))
+            // Jump Check
+            if(Input.GetButtonDown("Jump"))
             {
             	m_moveDirection.y = jumpSpeed;
             }
@@ -51,6 +94,65 @@ public class PlayerGullController : MonoBehaviour
 
         LookingAndFacing();
 	}
+
+    private IEnumerator MoveToCover()
+    {
+        RaycastHit rayHit;
+        if (Physics.Raycast(transform.position, transform.forward, out rayHit, snapToCoverDistance, coverRayMask))
+        {
+            m_coverObjectVec = GetCoverEdgeVec(rayHit);
+            m_currentCoverEdgeNormal = rayHit.normal;
+            m_currentCoverPoint = rayHit.point;
+
+            Vector3 playerVecToWall = Vector3.Normalize( transform.position - rayHit.point );
+            Vector3 wallPos = rayHit.point + new Vector3( playerVecToWall.x, 0f, playerVecToWall.z );
+
+            float startTime = Time.time;
+            float lerpTime = 0.5f;
+
+            while (Time.time - startTime < lerpTime)
+            {
+                float delta = Utilities.LerpScale( (Time.time - startTime), 0f, lerpTime, 0f, 1f);
+                transform.position = Vector3.Lerp(transform.position, wallPos, delta);
+                yield return null;
+            }
+            transform.position = wallPos;
+
+            StartCoroutine("BreakOutCoverTimer");
+
+            inCover = true;
+        }
+    }
+
+    private Vector3 GetCoverEdgeVec(RaycastHit rayHit)
+    {
+        Vector3 coverVec = Vector3.zero;       
+        coverVec = Vector3.Normalize( Vector3.Cross( Utilities.FlattenVector(rayHit.normal), Vector3.up ) );
+
+        return coverVec;
+    }   
+
+    private bool CoverEdgeValid()
+    {
+        RaycastHit rayHit;
+        if (Physics.Raycast(transform.position, m_currentCoverEdgeNormal * -1f, out rayHit, 10.0f, coverRayMask))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }    
+
+    private IEnumerator BreakOutCoverTimer()
+    {
+        m_canBreakFromCover = false;
+
+        yield return new WaitForSeconds(0.25f);
+
+        m_canBreakFromCover = true;
+    }
 
     private void LookingAndFacing()
     {          

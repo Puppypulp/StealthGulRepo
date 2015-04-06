@@ -41,11 +41,17 @@ public class PlayerGullController : MonoBehaviour
 
         if (Input.GetButtonDown("Cover") && !inCover)
         {
-            StartCoroutine("MoveToCover");
+            RaycastHit rayHit;
+            if (Physics.Raycast(transform.position, transform.forward, out rayHit, snapToCoverDistance, coverRayMask))
+            {
+                Camera.main.gameObject.GetComponent<CameraController>().inCoverCam = true;
+                StartCoroutine("MoveToCover", rayHit);
+            }
         }
 
         if (Input.GetButtonDown("Cover") && m_canBreakFromCover && inCover)
         {
+            Camera.main.gameObject.GetComponent<CameraController>().inCoverCam = false;
             inCover = false;
         }
 
@@ -95,33 +101,29 @@ public class PlayerGullController : MonoBehaviour
         LookingAndFacing();
 	}
 
-    private IEnumerator MoveToCover()
-    {
-        RaycastHit rayHit;
-        if (Physics.Raycast(transform.position, transform.forward, out rayHit, snapToCoverDistance, coverRayMask))
+    private IEnumerator MoveToCover(RaycastHit rayHit)
+    {        
+        m_coverObjectVec = GetCoverEdgeVec(rayHit);
+        m_currentCoverEdgeNormal = rayHit.normal;
+        m_currentCoverPoint = rayHit.point;
+
+        Vector3 playerVecToWall = Vector3.Normalize( transform.position - rayHit.point );
+        Vector3 wallPos = rayHit.point + new Vector3( playerVecToWall.x, 0f, playerVecToWall.z );
+
+        float startTime = Time.time;
+        float lerpTime = 0.5f;
+
+        while (Time.time - startTime < lerpTime)
         {
-            m_coverObjectVec = GetCoverEdgeVec(rayHit);
-            m_currentCoverEdgeNormal = rayHit.normal;
-            m_currentCoverPoint = rayHit.point;
-
-            Vector3 playerVecToWall = Vector3.Normalize( transform.position - rayHit.point );
-            Vector3 wallPos = rayHit.point + new Vector3( playerVecToWall.x, 0f, playerVecToWall.z );
-
-            float startTime = Time.time;
-            float lerpTime = 0.5f;
-
-            while (Time.time - startTime < lerpTime)
-            {
-                float delta = Utilities.LerpScale( (Time.time - startTime), 0f, lerpTime, 0f, 1f);
-                transform.position = Vector3.Lerp(transform.position, wallPos, delta);
-                yield return null;
-            }
-            transform.position = wallPos;
-
-            StartCoroutine("BreakOutCoverTimer");
-
-            inCover = true;
+            float delta = Utilities.LerpScale( (Time.time - startTime), 0f, lerpTime, 0f, 1f);
+            transform.position = Vector3.Lerp(transform.position, wallPos, delta);
+            yield return null;
         }
+        transform.position = wallPos;
+
+        StartCoroutine("BreakOutCoverTimer");
+
+        inCover = true;        
     }
 
     private Vector3 GetCoverEdgeVec(RaycastHit rayHit)

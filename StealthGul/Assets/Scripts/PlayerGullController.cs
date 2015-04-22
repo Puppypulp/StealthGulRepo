@@ -9,7 +9,9 @@ public class PlayerGullController : MonoBehaviour
     public float rotationMoveSpeed = 15.0f;
     public float snapToCoverDistance = 10.0f;
     public bool inCover = false;
-    public LayerMask coverRayMask;    
+    public LayerMask coverRayMask;
+    public PlayerGullAnimController gullAnimController;
+    public GameObject playerAttackBox;
 
     private Vector3 m_moveDirection = Vector3.zero;
     private Vector3 m_facingDirection = Vector3.zero;
@@ -26,9 +28,14 @@ public class PlayerGullController : MonoBehaviour
 	// Use this for initialization
 	private void Awake() 
     {
-        m_player1CharacterController = gameObject.GetComponent<CharacterController>();       
+        m_player1CharacterController = gameObject.GetComponent<CharacterController>(); 
         m_camTrans = Camera.main.transform;
-        m_facingDirection = new Vector3(0.0f, 0.0f, 0.0f);       
+        m_facingDirection = new Vector3(0.0f, 0.0f, 0.0f);
+
+        playerAttackBox.SetActive(false);
+
+        // Subscribe to the animation done event
+        gullAnimController.AnimationDoneEvent += ResetAttackBox;
 	}
 	
 	// Update is called once per frame
@@ -90,6 +97,12 @@ public class PlayerGullController : MonoBehaviour
             if(Input.GetButtonDown("Jump"))
             {
             	m_moveDirection.y = jumpSpeed;
+            }
+
+            if (Input.GetButtonDown("Attack"))
+            {
+                gullAnimController.PeckAnim();
+                playerAttackBox.SetActive(true);
             }
                     
         }
@@ -179,5 +192,15 @@ public class PlayerGullController : MonoBehaviour
         {
             return false;
         }
+    }
+
+    private void ResetAttackBox()
+    {
+        playerAttackBox.SetActive(false);
+    }
+
+    private void OnDestory()
+    {
+        gullAnimController.AnimationDoneEvent -= ResetAttackBox;
     }
 }

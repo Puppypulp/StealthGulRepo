@@ -11,6 +11,15 @@ public class EnemyPatrol : MonoBehaviour
     public GameObject playerObject;
     public LayerMask enemyRaycastMask;
 
+    public enum EnemyAwareState
+    {
+        unaware = 0,
+        aware = 1,
+        cautious = 2
+    }
+
+    public EnemyAwareState currentEnemyAwareness = EnemyAwareState.unaware;
+
     private Vector3 m_lastKnowPlayerPos;
     private int m_positionsCounter = 0;
     private float m_agentMoveSpeed;
@@ -48,6 +57,8 @@ public class EnemyPatrol : MonoBehaviour
     #region Moving To Position State
     private IEnumerator MovingToPositionState()
     {
+        currentEnemyAwareness = EnemyAwareState.unaware;
+
         navAgent.speed = m_agentMoveSpeed * 0.5f;
         while (true)
         {
@@ -89,6 +100,8 @@ public class EnemyPatrol : MonoBehaviour
     #region Chase Player State
     private IEnumerator ChasePlayerState()
     {
+        currentEnemyAwareness = EnemyAwareState.aware;
+
         navAgent.speed = m_agentMoveSpeed;
         navAgent.ResetPath();
        
@@ -145,6 +158,8 @@ public class EnemyPatrol : MonoBehaviour
     #region Search For Player State
     private IEnumerator SearchForPlayerState()
     {
+        currentEnemyAwareness = EnemyAwareState.cautious;
+
         navAgent.speed = m_agentMoveSpeed * 0.0f;
 
         // Lost sight of player and holding for a moment
@@ -189,7 +204,7 @@ public class EnemyPatrol : MonoBehaviour
         m_enemyVisionDot = Vector3.Dot(enemyFacingDir, vecToPlayer);
 
         // Check if the player is in the vision cone and the ray hit the player object
-        if (m_enemyVisionDot >= 0.4f && DistanceToPlayer() <= visionDistance)
+        if (m_enemyVisionDot >= 0.5f && DistanceToPlayer() <= visionDistance)
         {
             // Cast a ray forward from the enemy
             RaycastHit rayHit;
@@ -236,11 +251,9 @@ public class EnemyPatrol : MonoBehaviour
     // Face the player
     public void FacePlayer()
     {
-        Vector3 lookDirection = Vector3.Normalize(playerObject.transform.position - transform.position);
+        Vector3 lookDirection = Utilities.FlattenVector( Vector3.Normalize(playerObject.transform.position - transform.position) );
         Quaternion lookRotation = Quaternion.LookRotation(lookDirection, Vector3.up);
         Quaternion lerpLookRotation = Quaternion.Slerp(transform.rotation, lookRotation, (Time.deltaTime * 30.0f));
         transform.rotation = lerpLookRotation;
-    }  
-
-	
+    }	
 }

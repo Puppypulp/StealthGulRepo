@@ -44,8 +44,6 @@ public class CameraController : MonoBehaviour
 
         // Set the came pos to the adjusted position every frame
         transform.position = smoothedCamPos;
-
-        Debug.Log(RightStickCamVector());
     }
 
     private Vector3 RightStickCamVector()

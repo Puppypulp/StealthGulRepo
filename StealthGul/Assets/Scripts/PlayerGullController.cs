@@ -41,6 +41,8 @@ public class PlayerGullController : MonoBehaviour
 	// Update is called once per frame
 	private void Update() 
     {
+        bool isAlive = gameObject.GetComponent<PlayerHealthController>().alive;
+
         // CAMERA RELATIVE VECTORS
         xCam = Vector3.Normalize(m_camTrans.right);
         flatZCam = Vector3.Normalize(m_camTrans.forward - (Vector3.Dot(Vector3.up, m_camTrans.forward)) * Vector3.up);
@@ -92,24 +94,31 @@ public class PlayerGullController : MonoBehaviour
             }
            
             m_moveDirection *= moveSpeed;
-            
-            // Jump Check
-            if(Input.GetButtonDown("Jump"))
-            {
-            	m_moveDirection.y = jumpSpeed;
-            }
 
-            if (Input.GetButtonDown("Attack"))
+            if (isAlive)
             {
-                gullAnimController.PeckAnim();
-                playerAttackBox.SetActive(true);
+                // Jump Check
+                if (Input.GetButtonDown("Jump"))
+                {
+                    m_moveDirection.y = jumpSpeed;
+                }
+
+                if (Input.GetButtonDown("Attack"))
+                {
+                    gullAnimController.PeckAnim();
+                    playerAttackBox.SetActive(true);
+                }
             }
                     
         }
 
         // SETTING THE MOVEMENT BASED ON VALUES ABOVE
         m_moveDirection.y -= gravity * Time.deltaTime;
-        m_player1CharacterController.Move(m_moveDirection * Time.deltaTime);
+
+        if (isAlive)
+        {
+            m_player1CharacterController.Move(m_moveDirection * Time.deltaTime);
+        }
 
         LookingAndFacing();
 	}

@@ -21,4 +21,12 @@ public class Utilities
     {
         return (value - from1) / (to1 - from1) * (to2 - from2) + from2;
     }
+
+    public static float CosToAngleDegree(float cosValue)
+    {
+        float angle = Mathf.Acos(cosValue);
+        float degree = angle * (180.0f / Mathf.PI);
+
+        return degree;
+    }
 }

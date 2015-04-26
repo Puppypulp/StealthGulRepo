@@ -6,10 +6,14 @@ public class EnemyPatrol : MonoBehaviour
     public Transform waypointsGroup;
     public float waitAtNavPointTime = 2.0f;
     public float visionDistance = 10.0f;
+    public float visionRange = 0.8f;
     public float distanceToPLayerStop = 2.5f;
     public float searchForPlayerTimeout = 3.0f;
+    public GameObject attackBox;
     public GameObject playerObject;
+    public GameObject enemyObject;
     public LayerMask enemyRaycastMask;
+    public string currentState;
 
     public enum EnemyAwareState
     {
@@ -20,6 +24,11 @@ public class EnemyPatrol : MonoBehaviour
 
     public EnemyAwareState currentEnemyAwareness = EnemyAwareState.unaware;
 
+    public GameObject enemyVisionObject;
+    public Color patrolVisionColor;
+    public Color sightedVisionColor;
+    public Color searchingVisionColor;
+
     private Vector3 m_lastKnowPlayerPos;
     private int m_positionsCounter = 0;
     private float m_agentMoveSpeed;
@@ -27,6 +36,8 @@ public class EnemyPatrol : MonoBehaviour
     private NavMeshAgent navAgent;
     private Transform[] m_destinationPoints;
     private float m_enemyVisionDot = 0f;
+
+    private EnemyAnimController m_animControllerScript;
 
     private void Awake()
     {
@@ -40,6 +51,10 @@ public class EnemyPatrol : MonoBehaviour
         {
             m_destinationPoints[i] = waypointsGroup.GetChild(i);
         }
+
+        enemyVisionObject.GetComponent<CreateVisionMesh>().cosValue = visionRange;
+
+        m_animControllerScript = enemyObject.GetComponent<EnemyAnimController>();
     }
 
     private void Start()
@@ -51,13 +66,15 @@ public class EnemyPatrol : MonoBehaviour
     private void Update()
     {
         // Calling the on update function everyframe for the FSM
-        enemyFSM.OnUpdate();       
+        enemyFSM.OnUpdate();
+        currentState = enemyFSM.currentState;
     }
 
     #region Moving To Position State
     private IEnumerator MovingToPositionState()
     {
         currentEnemyAwareness = EnemyAwareState.unaware;
+        enemyVisionObject.GetComponent<Renderer>().material.SetColor("_Color", patrolVisionColor);
 
         navAgent.speed = m_agentMoveSpeed * 0.5f;
         while (true)
@@ -101,6 +118,7 @@ public class EnemyPatrol : MonoBehaviour
     private IEnumerator ChasePlayerState()
     {
         currentEnemyAwareness = EnemyAwareState.aware;
+        enemyVisionObject.GetComponent<Renderer>().material.SetColor("_Color", sightedVisionColor);
 
         navAgent.speed = m_agentMoveSpeed;
         navAgent.ResetPath();
@@ -134,9 +152,20 @@ public class EnemyPatrol : MonoBehaviour
     #region Attack Player State
     private IEnumerator AttackPlayerState()
     {
-        Debug.Log("Should attack player now");
+        attackBox.SetActive(true);
+        m_animControllerScript.AttackAnim();
 
-        yield return new WaitForSeconds(1.0f);
+        navAgent.speed = m_agentMoveSpeed;
+        navAgent.ResetPath();
+
+        while (m_animControllerScript.animating)
+        {
+            yield return null;
+        }
+
+        attackBox.SetActive(false);
+
+        yield return new WaitForSeconds(0.5f);
 
         if (PlayerInSight())
         {
@@ -159,6 +188,7 @@ public class EnemyPatrol : MonoBehaviour
     private IEnumerator SearchForPlayerState()
     {
         currentEnemyAwareness = EnemyAwareState.cautious;
+        enemyVisionObject.GetComponent<Renderer>().material.SetColor("_Color", searchingVisionColor);
 
         navAgent.speed = m_agentMoveSpeed * 0.0f;
 
@@ -204,7 +234,7 @@ public class EnemyPatrol : MonoBehaviour
         m_enemyVisionDot = Vector3.Dot(enemyFacingDir, vecToPlayer);
 
         // Check if the player is in the vision cone and the ray hit the player object
-        if (m_enemyVisionDot >= 0.5f && DistanceToPlayer() <= visionDistance)
+        if (m_enemyVisionDot >= visionRange && DistanceToPlayer() <= visionDistance)
         {
             // Cast a ray forward from the enemy
             RaycastHit rayHit;

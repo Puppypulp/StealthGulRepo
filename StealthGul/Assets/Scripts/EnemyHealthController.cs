@@ -8,6 +8,7 @@ public class EnemyHealthController : MonoBehaviour
     public int cautiousDamage = 2;
     public GameObject enemyOverlayMesh;
     public float damageColorIntensity = 4.0f;
+    public ParticleSystem unawareHitEffect;
 
     private AttackCollisionBehaviour m_attackScript;
     private EnemyPatrol m_enemyPatrolScript;
@@ -43,7 +44,9 @@ public class EnemyHealthController : MonoBehaviour
             StartCoroutine("DamageHitFlash");
 
             if (enemyHealth <= 0)
-                EnemyDead();
+            {
+                StartCoroutine("EnemyDead");
+            }
         }
     }
 
@@ -68,8 +71,21 @@ public class EnemyHealthController : MonoBehaviour
         m_beingHit = false;
     }
 
-    private void EnemyDead()
+    private IEnumerator EnemyDead()
     {
+        float totalWaitTime = unawareHitEffect.startLifetime;
+
+        yield return null;
+
+        unawareHitEffect.Play();
+        Time.timeScale = 0.1f;
+
+        yield return new WaitForSeconds(totalWaitTime * 0.75f);
+
+        Time.timeScale = 1f;
+
+        yield return new WaitForSeconds(totalWaitTime * 0.25f);
+
         Destroy(gameObject);
     }
 

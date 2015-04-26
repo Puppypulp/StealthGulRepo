@@ -128,7 +128,9 @@ public class EnemyPatrol : MonoBehaviour
             if (PlayerInSight())
             {
                 navAgent.ResetPath();
-                navAgent.SetDestination(playerObject.transform.position);
+                Vector3 playerPos = playerObject.transform.position;
+                Vector3 destPos = new Vector3(playerPos.x, transform.position.y, playerPos.z);
+                navAgent.SetDestination(destPos);
             }
             else
             {
@@ -240,7 +242,7 @@ public class EnemyPatrol : MonoBehaviour
             RaycastHit rayHit;
             if (Physics.Raycast(transform.position, vecToPlayer, out rayHit, visionDistance, enemyRaycastMask))
             {
-                if (rayHit.collider.tag == "Player")
+                if (rayHit.collider.tag == "Player" || rayHit.collider.tag == "PlayerAttack")
                 {
                     return true;
                 }
